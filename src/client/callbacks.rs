@@ -171,7 +171,7 @@ pub trait TimebaseHandler: Send {
     /// The first cycle after jack_set_timebase_callback() is also treated as 
     /// a new position, or the first cycle after jack_activate() if the client 
     /// had been inactive.
-    fn timebase(&mut self, _: &Client, _state: TransportState, _n_frames: Frames, _pos: *mut Position, _is_new_pos: bool) {}
+    fn timebase(&mut self, _: &Client, _state: TransportState, _n_frames: Frames, _pos: Position, _is_new_pos: bool) {}
 }
 
 unsafe extern "C" fn thread_init_callback<N, P, T>(data: *mut libc::c_void)
@@ -227,7 +227,7 @@ where
         0 => false,
         _ => true,
     };
-    ctx.timebase.timebase(&ctx.client, state, n_frames, pos, is_new_pos)
+    ctx.timebase.timebase(&ctx.client, state, n_frames, *pos, is_new_pos)
 }
 
 unsafe extern "C" fn freewheel<N, P, T>(starting: libc::c_int, data: *mut libc::c_void)
