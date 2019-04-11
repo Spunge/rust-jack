@@ -11,3 +11,9 @@ pub type Time = j::jack_time_t;
 /// ever need to know
 /// their value.
 pub type PortId = j::jack_port_id_t;
+
+/// Type used to represent transport state
+pub type TransportState = j::jack_transport_state_t;
+
+/// Type used to represent transport position
+pub type Position = j::jack_position_t;

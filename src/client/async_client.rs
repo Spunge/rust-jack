@@ -2,7 +2,7 @@ use jack_sys as j;
 use std::fmt;
 use std::mem;
 
-use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
+use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler, TimebaseHandler};
 use super::callbacks::clear_callbacks;
 use Error;
 use client::client::Client;
@@ -26,16 +26,17 @@ use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 /// // An active async client is created, `client` is consumed.
 /// let active_client = client.activate_async((), process_handler).unwrap();
 /// ```
-pub struct AsyncClient<N, P> {
-    callback: Option<Box<CallbackContext<N, P>>>,
+pub struct AsyncClient<N, P, T> {
+    callback: Option<Box<CallbackContext<N, P, T>>>,
 }
 
-unsafe impl<N: Send, P: Send> Send for AsyncClient<N, P> {}
+unsafe impl<N: Send, P: Send, T: Send> Send for AsyncClient<N, P, T> {}
 
-impl<N, P> AsyncClient<N, P>
+impl<N, P, T> AsyncClient<N, P, T>
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
     /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
@@ -45,7 +46,7 @@ where
     ///
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
-    pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
+    pub fn new(client: Client, notification_handler: N, process_handler: P, timebase_handler: T) -> Result<Self, Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
@@ -53,6 +54,7 @@ where
                 client: client,
                 notification: notification_handler,
                 process: process_handler,
+                timebase: timebase_handler,
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
             sleep_on_test();
@@ -74,7 +76,7 @@ where
 }
 
 
-impl<N, P> AsyncClient<N, P> {
+impl<N, P, T> AsyncClient<N, P, T> {
     /// Return the underlying `jack::Client`.
     #[inline(always)]
     pub fn as_client<'a>(&'a self) -> &'a Client {
@@ -90,17 +92,17 @@ impl<N, P> AsyncClient<N, P> {
     ///
     /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
     /// therefore unsafe to continue using.
-    pub fn deactivate(self) -> Result<(Client, N, P), Error> {
+    pub fn deactivate(self) -> Result<(Client, N, P, T), Error> {
         let mut c = self;
         unsafe {
             c.maybe_deactivate()
-                .map(|c| (c.client, c.notification, c.process))
+                .map(|c| (c.client, c.notification, c.process, c.timebase))
         }
     }
 
     // Helper function for deactivating. Any function that calls this should
     // have ownership of self and no longer use it after this call.
-    unsafe fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P>, Error> {
+    unsafe fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P, T>, Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
@@ -126,14 +128,14 @@ impl<N, P> AsyncClient<N, P> {
 }
 
 /// Closes the client.
-impl<N, P> Drop for AsyncClient<N, P> {
+impl<N, P, T> Drop for AsyncClient<N, P, T> {
     /// Deactivate and close the client.
     fn drop(&mut self) {
         let _ = unsafe { self.maybe_deactivate() };
     }
 }
 
-impl<N, P> fmt::Debug for AsyncClient<N, P> {
+impl<N, P, T> fmt::Debug for AsyncClient<N, P, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "AsyncClient({:?})", self.as_client())
     }

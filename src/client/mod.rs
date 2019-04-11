@@ -11,7 +11,7 @@ mod client_options;
 mod client_status;
 
 pub use self::async_client::AsyncClient;
-pub use self::callbacks::{NotificationHandler, ProcessHandler};
+pub use self::callbacks::{NotificationHandler, ProcessHandler, TimebaseHandler};
 pub use self::client::{Client, CycleTimes, ProcessScope};
 pub use self::client_options::ClientOptions;
 pub use self::client_status::ClientStatus;

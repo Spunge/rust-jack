@@ -2,10 +2,14 @@ use Client;
 use Control;
 use NotificationHandler;
 use ProcessHandler;
+use TimebaseHandler;
 use ProcessScope;
 
 /// A trivial handler that does nothing.
 impl NotificationHandler for () {}
+
+/// A trivial handler that does nothing.
+impl TimebaseHandler for () {}
 
 /// A trivial handler that does nothing.
 impl ProcessHandler for () {

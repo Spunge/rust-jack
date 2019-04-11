@@ -9,6 +9,7 @@ use ClientStatus;
 use Error;
 use Frames;
 use NotificationHandler;
+use TimebaseHandler;
 use Port;
 use PortFlags;
 use PortId;
@@ -64,16 +65,18 @@ impl Client {
 
     /// Begin processing in real-time using the specified `NotificationHandler` and
     /// `ProcessHandler`.
-    pub fn activate_async<N, P>(
+    pub fn activate_async<N, P, T>(
         self,
         notification_handler: N,
         process_handler: P,
-    ) -> Result<AsyncClient<N, P>, Error>
+        timebase_handler: T,
+    ) -> Result<AsyncClient<N, P, T>, Error>
     where
         N: NotificationHandler,
         P: ProcessHandler,
+        T: TimebaseHandler,
     {
-        AsyncClient::new(self, notification_handler, process_handler)
+        AsyncClient::new(self, notification_handler, process_handler, timebase_handler)
     }
 
     /// The sample rate of the JACK system, as set by the user when jackd was

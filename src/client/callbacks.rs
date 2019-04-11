@@ -10,6 +10,8 @@ use Frames;
 use LatencyType;
 use PortId;
 use ProcessScope;
+use TransportState;
+use Position;
 
 /// Specifies callbacks for JACK.
 pub trait NotificationHandler: Send {
@@ -160,24 +162,38 @@ pub trait ProcessHandler: Send {
     fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control;
 }
 
-unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)
+/// Specifies timebase 
+pub trait TimebaseHandler: Send {
+    /// This function is called immediately after process() in the same thread 
+    /// whenever the transport is rolling, or when any client has requested a 
+    /// new position in the previous cycle. 
+    ///
+    /// The first cycle after jack_set_timebase_callback() is also treated as 
+    /// a new position, or the first cycle after jack_activate() if the client 
+    /// had been inactive.
+    fn timebase(&mut self, _: &Client, _state: TransportState, _n_frames: Frames, _pos: *mut Position, _is_new_pos: bool) {}
+}
+
+unsafe extern "C" fn thread_init_callback<N, P, T>(data: *mut libc::c_void)
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     ctx.notification.thread_init(&ctx.client)
 }
 
-unsafe extern "C" fn shutdown<N, P>(
+unsafe extern "C" fn shutdown<N, P, T>(
     code: j::jack_status_t,
     reason: *const libc::c_char,
     data: *mut libc::c_void,
 ) where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let cstr = ffi::CStr::from_ptr(reason);
     let reason_str = match cstr.to_str() {
         Ok(s) => s,
@@ -189,22 +205,38 @@ unsafe extern "C" fn shutdown<N, P>(
     )
 }
 
-unsafe extern "C" fn process<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn process<N, P, T>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
     ctx.process.process(&ctx.client, &scope).to_ffi()
 }
 
-unsafe extern "C" fn freewheel<N, P>(starting: libc::c_int, data: *mut libc::c_void)
+unsafe extern "C" fn timebase<N, P, T>(state: TransportState, n_frames: Frames, pos: *mut Position, new_pos: libc::c_int, data: *mut libc::c_void)
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
+    let is_new_pos = match new_pos {
+        0 => false,
+        _ => true,
+    };
+    ctx.timebase.timebase(&ctx.client, state, n_frames, pos, is_new_pos)
+}
+
+unsafe extern "C" fn freewheel<N, P, T>(starting: libc::c_int, data: *mut libc::c_void)
+where
+    N: NotificationHandler,
+    P: ProcessHandler,
+    T: TimebaseHandler,
+{
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let is_starting = match starting {
         0 => false,
         _ => true,
@@ -212,33 +244,36 @@ where
     ctx.notification.freewheel(&ctx.client, is_starting)
 }
 
-unsafe extern "C" fn buffer_size<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn buffer_size<N, P, T>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     ctx.notification.buffer_size(&ctx.client, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn sample_rate<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn sample_rate<N, P, T>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     ctx.notification.sample_rate(&ctx.client, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn client_registration<N, P>(
+unsafe extern "C" fn client_registration<N, P, T>(
     name: *const libc::c_char,
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
     let register = match register {
         0 => false,
@@ -248,15 +283,16 @@ unsafe extern "C" fn client_registration<N, P>(
         .client_registration(&ctx.client, name, register)
 }
 
-unsafe extern "C" fn port_registration<N, P>(
+unsafe extern "C" fn port_registration<N, P, T>(
     port_id: PortId,
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let register = match register {
         0 => false,
         _ => true,
@@ -266,7 +302,7 @@ unsafe extern "C" fn port_registration<N, P>(
 }
 
 #[allow(dead_code)] // TODO: remove once it can be registered
-unsafe extern "C" fn port_rename<N, P>(
+unsafe extern "C" fn port_rename<N, P, T>(
     port_id: PortId,
     old_name: *const libc::c_char,
     new_name: *const libc::c_char,
@@ -275,8 +311,9 @@ unsafe extern "C" fn port_rename<N, P>(
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
     let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
     ctx.notification
@@ -284,7 +321,7 @@ where
         .to_ffi()
 }
 
-unsafe extern "C" fn port_connect<N, P>(
+unsafe extern "C" fn port_connect<N, P, T>(
     port_id_a: PortId,
     port_id_b: PortId,
     connect: libc::c_int,
@@ -292,8 +329,9 @@ unsafe extern "C" fn port_connect<N, P>(
 ) where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let are_connected = match connect {
         0 => false,
         _ => true,
@@ -302,30 +340,33 @@ unsafe extern "C" fn port_connect<N, P>(
         .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected)
 }
 
-unsafe extern "C" fn graph_order<N, P>(data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn graph_order<N, P, T>(data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     ctx.notification.graph_reorder(&ctx.client).to_ffi()
 }
 
-unsafe extern "C" fn xrun<N, P>(data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn xrun<N, P, T>(data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     ctx.notification.xrun(&ctx.client).to_ffi()
 }
 
-unsafe extern "C" fn latency<N, P>(mode: j::jack_latency_callback_mode_t, data: *mut libc::c_void)
+unsafe extern "C" fn latency<N, P, T>(mode: j::jack_latency_callback_mode_t, data: *mut libc::c_void)
 where
     N: NotificationHandler,
     P: ProcessHandler,
+    T: TimebaseHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let ctx = CallbackContext::<N, P, T>::from_raw(data);
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,
         j::JackPlaybackLatency => LatencyType::Playback,
@@ -353,16 +394,17 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Erro
     Ok(())
 }
 
-pub struct CallbackContext<N, P> {
+pub struct CallbackContext<N, P, T> {
     pub client: Client,
     pub notification: N,
     pub process: P,
+    pub timebase: T,
 }
 
-impl<N: NotificationHandler, P: ProcessHandler> CallbackContext<N, P> {
-    pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P> {
+impl<N: NotificationHandler, P: ProcessHandler, T: TimebaseHandler> CallbackContext<N, P, T> {
+    pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P, T> {
         debug_assert!(!ptr.is_null());
-        let obj_ptr: *mut CallbackContext<N, P> = mem::transmute(ptr);
+        let obj_ptr: *mut CallbackContext<N, P, T> = mem::transmute(ptr);
         &mut *obj_ptr
     }
 
@@ -400,24 +442,25 @@ impl<N: NotificationHandler, P: ProcessHandler> CallbackContext<N, P> {
     pub unsafe fn register_callbacks(b: &mut Box<Self>) -> Result<(), Error> {
         let data_ptr = CallbackContext::raw(b);
         let client = b.client.raw();
-        j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
-        j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
-        j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
-        j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
-        j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
-        j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
+        j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P, T>), data_ptr);
+        j::jack_on_info_shutdown(client, Some(shutdown::<N, P, T>), data_ptr);
+        j::jack_set_process_callback(client, Some(process::<N, P, T>), data_ptr);
+        j::jack_set_timebase_callback(client, 0, Some(timebase::<N, P, T>), data_ptr);
+        j::jack_set_freewheel_callback(client, Some(freewheel::<N, P, T>), data_ptr);
+        j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P, T>), data_ptr);
+        j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P, T>), data_ptr);
         j::jack_set_client_registration_callback(
             client,
-            Some(client_registration::<N, P>),
+            Some(client_registration::<N, P, T>),
             data_ptr,
         );
-        j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
+        j::jack_set_port_registration_callback(client, Some(port_registration::<N, P, T>), data_ptr);
         // doesn't compile for testing since it is a weak export
         // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
-        j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
-        j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
-        j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
-        j::jack_set_latency_callback(client, Some(latency::<N, P>), data_ptr);
+        j::jack_set_port_connect_callback(client, Some(port_connect::<N, P, T>), data_ptr);
+        j::jack_set_graph_order_callback(client, Some(graph_order::<N, P, T>), data_ptr);
+        j::jack_set_xrun_callback(client, Some(xrun::<N, P, T>), data_ptr);
+        j::jack_set_latency_callback(client, Some(latency::<N, P, T>), data_ptr);
         Ok(())
     }
 }
