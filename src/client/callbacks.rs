@@ -227,7 +227,10 @@ where
         0 => false,
         _ => true,
     };
-    ctx.timebase.timebase(&ctx.client, state, n_frames, *pos, is_new_pos)
+    let mut position = *pos;
+    position.valid = j::JackPositionBBT;
+
+    ctx.timebase.timebase(&ctx.client, state, n_frames, position, is_new_pos)
 }
 
 unsafe extern "C" fn freewheel<N, P, T>(starting: libc::c_int, data: *mut libc::c_void)
