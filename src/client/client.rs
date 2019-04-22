@@ -458,6 +458,18 @@ impl Client {
         n
     }
 
+    pub fn transport_start(&self) {
+        unsafe {
+            j::jack_transport_start(self.raw())
+        }
+    }
+
+    pub fn transport_stop(&self) {
+        unsafe {
+            j::jack_transport_stop(self.raw())
+        }
+    }
+
     /// Expose the underlying ffi pointer.
     ///
     /// This is mostly for use within the jack crate itself.
