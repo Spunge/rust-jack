@@ -470,9 +470,9 @@ impl Client {
         }
     }
 
-    pub fn transport_state(&self) {
+    pub fn transport_state(&self) -> u32 {
         unsafe {
-            j::jack_transport_query(self.raw())
+            j::jack_transport_query(self.raw(), *ptr::null())
         }
     }
 
