@@ -482,6 +482,12 @@ impl Client {
         }
     }
 
+    pub fn transport_reposition(&self, mut pos: Position) {
+        unsafe {
+            j::jack_transport_reposition(self.raw(), &mut pos as *mut _);
+        }
+    }
+
     /// Expose the underlying ffi pointer.
     ///
     /// This is mostly for use within the jack crate itself.
