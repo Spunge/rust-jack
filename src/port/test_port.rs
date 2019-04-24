@@ -59,7 +59,7 @@ fn port_connected_count() {
     let pb = c.register_port("pb", AudioOut::default()).unwrap();
     let pc = c.register_port("pc", AudioOut::default()).unwrap();
     let pd = c.register_port("pd", AudioOut::default()).unwrap();
-    let c = c.activate_async((), ()).unwrap();
+    let c = c.activate_async((), (), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
     assert_eq!(pa.connected_count().unwrap(), 2);
@@ -75,7 +75,7 @@ fn port_knows_connections() {
     let pb = c.register_port("pb", AudioOut::default()).unwrap();
     let pc = c.register_port("pc", AudioOut::default()).unwrap();
     let pd = c.register_port("pd", AudioOut::default()).unwrap();
-    let c = c.activate_async((), ()).unwrap();
+    let c = c.activate_async((), (), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
 

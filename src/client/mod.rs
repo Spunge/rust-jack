@@ -25,3 +25,6 @@ mod test;
 
 #[cfg(test)]
 mod test_callback;
+
+#[cfg(test)]
+mod test_transport;

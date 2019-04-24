@@ -351,7 +351,7 @@ mod test {
         };
 
         // activate
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback), ())
             .unwrap();
 
         // connect ports to each other
@@ -389,7 +389,7 @@ mod test {
         };
 
         // activate
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback), ())
             .unwrap();
 
         // check correctness
@@ -424,7 +424,7 @@ mod test {
         };
 
         // activate
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback), ())
             .unwrap();
 
         // check correctness
@@ -474,7 +474,7 @@ mod test {
         };
 
         // run
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback), ())
             .unwrap();
         ac.as_client()
             .connect_ports_by_name("port_midi_iter:op", "port_midi_iter:ip")
@@ -522,11 +522,11 @@ mod test {
         let processor = IterTest::new(&c, stream.clone(), collect);
         let connector = processor.connector();
 
-        let ac = c.activate_async((), processor).unwrap();
+        let ac = c.activate_async((), processor, ()).unwrap();
         connector.connect(ac.as_client());
         thread::sleep(time::Duration::from_millis(200));
 
-        let (_, _, processor) = ac.deactivate().unwrap();
+        let (_, _, processor, _) = ac.deactivate().unwrap();
         let expected: &[OwnedRawMidi] = &stream[0..2];
         let got: &[OwnedRawMidi] = &processor.collected;
         assert_eq!(expected, got);

@@ -17,6 +17,7 @@ use PortSpec;
 use ProcessHandler;
 use Time;
 use Unowned;
+use Position;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use jack_utils::collect_strs;
 
@@ -470,9 +471,14 @@ impl Client {
         }
     }
 
-    pub fn transport_query(&self) -> u32 {
+    /// Get transport state
+    pub fn transport_query(&self) -> (u32, Position) {
         unsafe {
-            j::jack_transport_query(self.raw(), *ptr::null())
+            let mut pos = Position::default();
+
+            let state = j::jack_transport_query(self.raw(), &mut pos as *mut _);
+
+            (state, pos)
         }
     }
 

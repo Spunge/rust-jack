@@ -45,7 +45,7 @@ fn main() {
 
     // activate
     let active_client = client
-        .activate_async((), jack::ClosureProcessHandler::new(cback))
+        .activate_async((), jack::ClosureProcessHandler::new(cback), ())
         .unwrap();
 
     // wait

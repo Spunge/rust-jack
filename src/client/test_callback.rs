@@ -8,8 +8,11 @@ use Control;
 use Frames;
 use LatencyType;
 use NotificationHandler;
+use TimebaseHandler;
 use PortId;
 use ProcessHandler;
+use TransportState;
+use Position;
 
 #[derive(Debug, Default)]
 pub struct Counter {
@@ -70,13 +73,18 @@ impl ProcessHandler for Counter {
     }
 }
 
+impl TimebaseHandler for Counter {
+    fn timebase(&mut self, _: &Client, _state: TransportState, _n_frames: Frames, _pos: *mut Position, _is_new_pos: bool) {
+    }
+}
+
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
 
-fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
+fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter, Counter>) {
     let c = open_test_client(name);
-    let ac = c.activate_async(Counter::default(), Counter::default())
+    let ac = c.activate_async(Counter::default(), Counter::default(), Counter::default())
         .unwrap();
     ac
 }
@@ -187,7 +195,7 @@ fn client_cback_reports_xruns() {
     let c = open_test_client("client_cback_reports_xruns");
     let mut counter = Counter::default();
     counter.induce_xruns = true;
-    let ac = c.activate_async(Counter::default(), counter).unwrap();
+    let ac = c.activate_async(Counter::default(), counter, Counter::default()).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.xruns_count > 0, "No xruns encountered.");
 }

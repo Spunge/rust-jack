@@ -83,7 +83,7 @@ fn client_port_can_get_port_by_id() {
 
     // Open and activate client
     let c = open_test_client(client_name);
-    let ac = c.activate_async(h, ()).unwrap();
+    let ac = c.activate_async(h, (), ()).unwrap();
 
     // Register port
     let _pa = ac.as_client()
@@ -139,7 +139,7 @@ fn client_port_can_connect_ports() {
     let out_p = client.register_port("outp", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // connect them
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -154,7 +154,7 @@ fn client_port_can_connect_ports_by_name() {
     let _out_p = client.register_port("outp", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // connect them
     client
@@ -173,7 +173,7 @@ fn client_port_can_connect_unowned_ports() {
     let _out_p = client.register_port("outp", AudioOut::default()).unwrap();
 
     // start client
-    let _client = client.activate_async((), ()).unwrap();
+    let _client = client.activate_async((), (), ()).unwrap();
 
     // connect them
     connector
@@ -203,7 +203,7 @@ fn client_port_cant_connect_inactive_client() {
     // Normally we start a client before we begin connecting, but in this case
     // we're checking for errors that happen when we connect before activating.
     //
-    // let client = client.activate_async((), ()).unwrap();
+    // let client = client.activate_async((), (), ()).unwrap();
 
     // connect them
     assert_eq!(
@@ -221,7 +221,7 @@ fn client_port_recognizes_already_connected_ports() {
     let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // attempt to connect the ports twice
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -237,7 +237,7 @@ fn client_port_recognizes_already_connected_ports() {
 #[test]
 fn client_port_fails_to_connect_nonexistant_ports() {
     let client = open_test_client("client_port_ftcnp")
-        .activate_async((), ())
+        .activate_async((), (), ())
         .unwrap();
     assert_eq!(
         client
@@ -259,7 +259,7 @@ fn client_port_can_disconnect_port_from_all() {
     let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // connect and disconnect
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -275,7 +275,7 @@ fn client_port_can_disconnect_ports() {
     let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // connect and disconnect
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -291,7 +291,7 @@ fn client_port_can_disconnect_ports_by_name() {
     let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // connect and disconnect
     client
@@ -314,7 +314,7 @@ fn client_port_can_disconnect_unowned_ports() {
     let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
-    let client = client.activate_async((), ()).unwrap();
+    let client = client.activate_async((), (), ()).unwrap();
 
     // connect and disconnect
     client

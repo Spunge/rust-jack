@@ -140,7 +140,7 @@ mod test {
             }
             Control::Continue
         };
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback), ())
             .unwrap();
         ac.as_client()
             .connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")

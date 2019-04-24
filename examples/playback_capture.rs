@@ -34,7 +34,7 @@ fn main() {
     let process = jack::ClosureProcessHandler::new(process_callback);
 
     // Activate the client, which starts the processing.
-    let active_client = client.activate_async(Notifications, process).unwrap();
+    let active_client = client.activate_async(Notifications, process, ()).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");
